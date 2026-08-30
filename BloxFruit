@@ -1,3 +1,72 @@
+local Bypasser = {}
+
+-- Randomization utilities
+Bypasser.randomDelay = function(min, max)
+    wait(math.random(min * 100, max * 100) / 100)
+end
+
+-- Human-like mouse movement
+Bypasser.humanizeMouse = function(targetPos)
+    local mouse = game.Players.LocalPlayer:GetMouse()
+    local currentPos = mouse.Position
+    local steps = math.random(5, 15)
+    for i = 1, steps do
+        local lerpPos = currentPos:Lerp(targetPos, i / steps)
+        mouse.Move:Fire(lerpPos)
+        Bypasser.randomDelay(0.01, 0.05)
+    end
+end
+
+-- Hook detection functions
+local oldGetNilInstances = getnilinstances
+getnilinstances = function()
+    local instances = oldGetNilInstances()
+    local filtered = {}
+    for _, inst in pairs(instances) do
+        if not inst.Name:find("OPEX") and not inst.Name:find("Toggle") then
+            table.insert(filtered, inst)
+        end
+    end
+    return filtered
+end
+
+local oldGetConnections = getconnections
+getconnections = function(event)
+    local connections = oldGetConnections(event)
+    local filtered = {}
+    for _, conn in pairs(connections) do
+        if not conn.Function or not conn.Function:find("OPEX") then
+            table.insert(filtered, conn)
+        end
+    end
+    return filtered
+end
+
+-- Protect functions with metatables
+Bypasser.protectFunction = function(func)
+    local mt = getmetatable(func) or {}
+    mt.__index = function() return nil end
+    mt.__newindex = function() return nil end
+    setmetatable(func, mt)
+    return func
+end
+
+-- Obfuscate names
+local obfuscateName = function(name)
+    return name:gsub("OPEX", "OX" .. math.random(1000, 9999))
+end
+
+-- Initialize bypasser
+Bypasser.init = function()
+    print("Bypasser initialized")
+    -- Additional anti-detection measures can be added here
+end
+
+-- Call init
+Bypasser.init()
+
+-- Original Main.lua content starts here
+
 local library = {}
 library.gui = nil
 library.window = nil
@@ -5,10 +74,11 @@ library.toggleButton = nil
 
 -- Create toggle button (small square)
 function library:CreateToggleButton()
+    Bypasser.randomDelay(0.1, 0.3)  -- Add random delay for human-like behavior
     if self.toggleButton then return end
     
     local screenGui = Instance.new("ScreenGui")
-    screenGui.Name = "OPEX_Toggle"
+    screenGui.Name = obfuscateName("OPEX_Toggle")  -- Obfuscate name
     screenGui.Parent = game.CoreGui
     
     local button = Instance.new("Frame")
@@ -29,12 +99,13 @@ function library:CreateToggleButton()
     textLabel.Parent = button
     
     button.InputBegan:Connect(function(input)
+        Bypasser.randomDelay(0.05, 0.15)  -- Random delay before action
         if input.UserInputType == Enum.UserInputType.MouseButton1 then
             if self.window and self.window.Visible then
                 self.window.Visible = false
             else
                 if not self.gui then
-                    self:CreateWindow("OPEX HUB")
+                    self:CreateWindow(obfuscateName("OPEX HUB"))  -- Obfuscate title
                 end
                 self.window.Visible = true
             end
@@ -45,13 +116,14 @@ function library:CreateToggleButton()
 end
 
 function library:CreateWindow(title)
+    Bypasser.randomDelay(0.2, 0.5)  -- Random delay for window creation
     if self.gui then
         self.gui:Destroy()
     end
     
     -- Create GUI
     local screenGui = Instance.new("ScreenGui")
-    screenGui.Name = "OPEX_HUB"
+    screenGui.Name = obfuscateName("OPEX_HUB")  -- Obfuscate name
     screenGui.Parent = game.CoreGui
     
     local frame = Instance.new("Frame")
@@ -158,10 +230,12 @@ function library:CreateWindow(title)
     
     -- Button functionality
     minimizeBtn.MouseButton1Click:Connect(function()
+        Bypasser.randomDelay(0.05, 0.1)
         frame.Visible = false
     end)
     
     closeBtn.MouseButton1Click:Connect(function()
+        Bypasser.randomDelay(0.05, 0.1)
         frame.Visible = false
     end)
     
@@ -170,6 +244,7 @@ function library:CreateWindow(title)
     local window = {}
     
     function window:Toggle(text, state, callback)
+        Bypasser.randomDelay(0.1, 0.3)
         elementCount = elementCount + 1
         local toggleFrame = Instance.new("Frame")
         toggleFrame.Size = UDim2.new(1, -10, 0, 30)
@@ -198,6 +273,7 @@ function library:CreateWindow(title)
         label.Parent = toggleFrame
         
         toggleButton.MouseButton1Click:Connect(function()
+            Bypasser.randomDelay(0.05, 0.15)
             state = not state
             toggleButton.BackgroundColor3 = state and Color3.fromRGB(0, 150, 0) or Color3.fromRGB(100, 100, 100)
             callback(state)
@@ -207,6 +283,7 @@ function library:CreateWindow(title)
     end
     
     function window:Box(text, boxType, callback)
+        Bypasser.randomDelay(0.1, 0.3)
         elementCount = elementCount + 1
         local boxFrame = Instance.new("Frame")
         boxFrame.Size = UDim2.new(1, -10, 0, 50)
@@ -236,6 +313,7 @@ function library:CreateWindow(title)
         textBox.Parent = boxFrame
         
         textBox.FocusLost:Connect(function(enterPressed)
+            Bypasser.randomDelay(0.05, 0.1)
             if enterPressed then
                 local value = textBox.Text
                 if boxType == "number" then
@@ -249,6 +327,7 @@ function library:CreateWindow(title)
     end
     
     function window:Button(text, callback)
+        Bypasser.randomDelay(0.1, 0.3)
         elementCount = elementCount + 1
         local buttonFrame = Instance.new("Frame")
         buttonFrame.Size = UDim2.new(1, -10, 0, 30)
@@ -267,12 +346,16 @@ function library:CreateWindow(title)
         button.TextSize = 14
         button.Parent = buttonFrame
         
-        button.MouseButton1Click:Connect(callback)
+        button.MouseButton1Click:Connect(function()
+            Bypasser.randomDelay(0.05, 0.15)
+            callback()
+        end)
         
         scrollFrame.CanvasSize = UDim2.new(0, 0, 0, layout.AbsoluteContentSize.Y + 10)
     end
     
     function window:Slider(text, minVal, maxVal, defaultVal, callback)
+        Bypasser.randomDelay(0.1, 0.3)
         elementCount = elementCount + 1
         local sliderFrame = Instance.new("Frame")
         sliderFrame.Size = UDim2.new(1, -10, 0, 60)
@@ -324,6 +407,7 @@ function library:CreateWindow(title)
         end)
         
         slider.InputBegan:Connect(function(input)
+            Bypasser.randomDelay(0.05, 0.1)
             if input.UserInputType == Enum.UserInputType.MouseButton1 then
                 local pos = (input.Position.X - slider.AbsolutePosition.X) / slider.AbsoluteSize.X
                 pos = math.clamp(pos, 0, 1)
@@ -368,189 +452,234 @@ local w = library:CreateWindow("OPEX HUB")
 
 -- Core Farming Features
 w:Toggle("Auto Farm Level", false, function(state)
+    Bypasser.randomDelay(0.1, 0.3)
     print("Auto Farm Level:", state)
 end)
 
 w:Toggle("Auto Farm Mastery", false, function(state)
+    Bypasser.randomDelay(0.1, 0.3)
     print("Auto Farm Mastery:", state)
 end)
 
 w:Toggle("Auto Farm Bosses", false, function(state)
+    Bypasser.randomDelay(0.1, 0.3)
     print("Auto Farm Bosses:", state)
 end)
 
 w:Box("Select Boss", "dropdown", function(value)
+    Bypasser.randomDelay(0.1, 0.3)
     print("Selected Boss:", value)
 end)
 
 w:Toggle("Auto Farm Materials", false, function(state)
+    Bypasser.randomDelay(0.1, 0.3)
     print("Auto Farm Materials:", state)
 end)
 
 w:Toggle("Auto Farm Bounty/Honor", false, function(state)
+    Bypasser.randomDelay(0.1, 0.3)
     print("Auto Farm Bounty/Honor:", state)
 end)
 
 w:Toggle("Auto Dough King", false, function(state)
+    Bypasser.randomDelay(0.1, 0.3)
     print("Auto Dough King:", state)
 end)
 
 w:Toggle("Kill Aura", false, function(state)
+    Bypasser.randomDelay(0.1, 0.3)
     print("Kill Aura:", state)
 end)
 
 w:Toggle("Skill Aimbot", false, function(state)
+    Bypasser.randomDelay(0.1, 0.3)
     print("Skill Aimbot:", state)
 end)
 
 -- Sea Events & Kitsune Island
 w:Toggle("Auto Kitsune Shrine", false, function(state)
+    Bypasser.randomDelay(0.1, 0.3)
     print("Auto Kitsune Shrine:", state)
 end)
 
 w:Toggle("Auto Leviathan", false, function(state)
+    Bypasser.randomDelay(0.1, 0.3)
     print("Auto Leviathan:", state)
 end)
 
 w:Toggle("Auto Terror Shark", false, function(state)
+    Bypasser.randomDelay(0.1, 0.3)
     print("Auto Terror Shark:", state)
 end)
 
 w:Toggle("Auto Sea Beast", false, function(state)
+    Bypasser.randomDelay(0.1, 0.3)
     print("Auto Sea Beast:", state)
 end)
 
 w:Toggle("Boat Modifications", false, function(state)
+    Bypasser.randomDelay(0.1, 0.3)
     print("Boat Modifications:", state)
 end)
 
 -- Devil Fruits & Raids
 w:Toggle("Fruit Sniper", false, function(state)
+    Bypasser.randomDelay(0.1, 0.3)
     print("Fruit Sniper:", state)
 end)
 
 w:Toggle("Fruit ESP/Bring", false, function(state)
+    Bypasser.randomDelay(0.1, 0.3)
     print("Fruit ESP/Bring:", state)
 end)
 
 w:Toggle("Auto Store/Eat", false, function(state)
+    Bypasser.randomDelay(0.1, 0.3)
     print("Auto Store/Eat:", state)
 end)
 
 w:Toggle("Auto Raid Clear", false, function(state)
+    Bypasser.randomDelay(0.1, 0.3)
     print("Auto Raid Clear:", state)
 end)
 
 w:Toggle("Auto Awaken", false, function(state)
+    Bypasser.randomDelay(0.1, 0.3)
     print("Auto Awaken:", state)
 end)
 
 w:Toggle("Auto Law Raid", false, function(state)
+    Bypasser.randomDelay(0.1, 0.3)
     print("Auto Law Raid:", state)
 end)
 
 -- Item & Quest Automation
 w:Toggle("Auto CDK", false, function(state)
+    Bypasser.randomDelay(0.1, 0.3)
     print("Auto CDK:", state)
 end)
 
 w:Toggle("Auto Soul Guitar", false, function(state)
+    Bypasser.randomDelay(0.1, 0.3)
     print("Auto Soul Guitar:", state)
 end)
 
 w:Toggle("Auto TTK", false, function(state)
+    Bypasser.randomDelay(0.1, 0.3)
     print("Auto TTK:", state)
 end)
 
 w:Toggle("Auto Haki/Colors", false, function(state)
+    Bypasser.randomDelay(0.1, 0.3)
     print("Auto Haki/Colors:", state)
 end)
 
 w:Toggle("Auto Race V2/V3", false, function(state)
+    Bypasser.randomDelay(0.1, 0.3)
     print("Auto Race V2/V3:", state)
 end)
 
 -- Race V4 & Trials
 w:Toggle("Auto Mirage Island", false, function(state)
+    Bypasser.randomDelay(0.1, 0.3)
     print("Auto Mirage Island:", state)
 end)
 
 w:Toggle("Auto Full Moon", false, function(state)
+    Bypasser.randomDelay(0.1, 0.3)
     print("Auto Full Moon:", state)
 end)
 
 w:Toggle("Auto Temple of Time", false, function(state)
+    Bypasser.randomDelay(0.1, 0.3)
     print("Auto Temple of Time:", state)
 end)
 
 w:Toggle("Auto Train Race", false, function(state)
+    Bypasser.randomDelay(0.1, 0.3)
     print("Auto Train Race:", state)
 end)
 
 -- ESP Systems
 w:Toggle("Player ESP", false, function(state)
+    Bypasser.randomDelay(0.1, 0.3)
     print("Player ESP:", state)
 end)
 
 w:Toggle("Chest ESP", false, function(state)
+    Bypasser.randomDelay(0.1, 0.3)
     print("Chest ESP:", state)
 end)
 
 w:Toggle("Island ESP", false, function(state)
+    Bypasser.randomDelay(0.1, 0.3)
     print("Island ESP:", state)
 end)
 
 w:Toggle("Flower ESP", false, function(state)
+    Bypasser.randomDelay(0.1, 0.3)
     print("Flower ESP:", state)
 end)
 
 -- Player State & Miscellaneous Utilities
 w:Toggle("Server Hop System", false, function(state)
+    Bypasser.randomDelay(0.1, 0.3)
     print("Server Hop System:", state)
 end)
 
 w:Toggle("Auto Stats", false, function(state)
+    Bypasser.randomDelay(0.1, 0.3)
     print("Auto Stats:", state)
 end)
 
 w:Toggle("Movement Hacks", false, function(state)
+    Bypasser.randomDelay(0.1, 0.3)
     print("Movement Hacks:", state)
 end)
 
 w:Toggle("Anti-AFK", false, function(state)
+    Bypasser.randomDelay(0.1, 0.3)
     print("Anti-AFK:", state)
 end)
 
 w:Toggle("FPS Boost", false, function(state)
+    Bypasser.randomDelay(0.1, 0.3)
     print("FPS Boost:", state)
 end)
 
 w:Box("Webhook URL", "string", function(value)
+    Bypasser.randomDelay(0.1, 0.3)
     print("Webhook URL:", value)
 end)
 
 -- Prehistoric Island & Volcanic Event Features
 w:Toggle("Prehistoric Island Features", false, function(state)
+    Bypasser.randomDelay(0.1, 0.3)
     print("Prehistoric Island Features:", state)
 end)
 
 w:Toggle("Auto Volcanic Magnet", false, function(state)
+    Bypasser.randomDelay(0.1, 0.3)
     print("Auto Volcanic Magnet:", state)
 end)
 
 w:Toggle("Auto Defend Ancient Relic", false, function(state)
+    Bypasser.randomDelay(0.1, 0.3)
     print("Auto Defend Ancient Relic:", state)
 end)
 
 w:Toggle("Auto Material Collector", false, function(state)
+    Bypasser.randomDelay(0.1, 0.3)
     print("Auto Material Collector:", state)
 end)
 
 w:Toggle("Auto Fossil Expert", false, function(state)
+    Bypasser.randomDelay(0.1, 0.3)
     print("Auto Fossil Expert:", state)
 end)
 
 w:Toggle("Draco Cave Auto-Clear", false, function(state)
+    Bypasser.randomDelay(0.1, 0.3)
     print("Draco Cave Auto-Clear:", state)
 end)
 
@@ -558,93 +687,115 @@ end)
 
 -- Endgame Fighting Styles
 w:Toggle("Auto Godhuman", false, function(state)
+    Bypasser.randomDelay(0.1, 0.3)
     print("Auto Godhuman:", state)
 end)
 
 w:Toggle("Auto Sanguine Art", false, function(state)
+    Bypasser.randomDelay(0.1, 0.3)
     print("Auto Sanguine Art:", state)
 end)
 
 w:Toggle("Auto Superhuman", false, function(state)
+    Bypasser.randomDelay(0.1, 0.3)
     print("Auto Superhuman:", state)
 end)
 
 w:Toggle("Auto Death Step", false, function(state)
+    Bypasser.randomDelay(0.1, 0.3)
     print("Auto Death Step:", state)
 end)
 
 w:Toggle("Auto Sharkman Karate", false, function(state)
+    Bypasser.randomDelay(0.1, 0.3)
     print("Auto Sharkman Karate:", state)
 end)
 
 w:Toggle("Auto Electric Claw", false, function(state)
+    Bypasser.randomDelay(0.1, 0.3)
     print("Auto Electric Claw:", state)
 end)
 
 w:Toggle("Auto Dragon Talon", false, function(state)
+    Bypasser.randomDelay(0.1, 0.3)
     print("Auto Dragon Talon:", state)
 end)
 
 -- Specific Bosses & Global Events
 w:Toggle("Auto Rip_Indra", false, function(state)
+    Bypasser.randomDelay(0.1, 0.3)
     print("Auto Rip_Indra:", state)
 end)
 
 w:Toggle("Auto Pirate Raid", false, function(state)
+    Bypasser.randomDelay(0.1, 0.3)
     print("Auto Pirate Raid:", state)
 end)
 
 w:Toggle("Auto Elite Hunter", false, function(state)
+    Bypasser.randomDelay(0.1, 0.3)
     print("Auto Elite Hunter:", state)
 end)
 
 w:Toggle("Auto Bone (Death King)", false, function(state)
+    Bypasser.randomDelay(0.1, 0.3)
     print("Auto Bone (Death King):", state)
 end)
 
 -- Advanced Race & Haki Upgrades
 w:Toggle("Auto Observation V2", false, function(state)
+    Bypasser.randomDelay(0.1, 0.3)
     print("Auto Observation V2:", state)
 end)
 
 w:Toggle("Auto Cyborg Race", false, function(state)
+    Bypasser.randomDelay(0.1, 0.3)
     print("Auto Cyborg Race:", state)
 end)
 
 w:Toggle("Auto Ghoul Race", false, function(state)
+    Bypasser.randomDelay(0.1, 0.3)
     print("Auto Ghoul Race:", state)
 end)
 
 -- PvP & Survival
 w:Slider("Hitbox Expansion", 0, 50, 0, function(value)
+    Bypasser.randomDelay(0.1, 0.3)
     print("Hitbox Expansion:", value)
 end)
 
 w:Toggle("Auto Safezone", false, function(state)
+    Bypasser.randomDelay(0.1, 0.3)
     print("Auto Safezone:", state)
 end)
 
 w:Box("Safezone Health %", "number", function(value)
+    Bypasser.randomDelay(0.1, 0.3)
     print("Safezone Health %:", value)
 end)
 
 w:Toggle("Auto Ken Haki", false, function(state)
+    Bypasser.randomDelay(0.1, 0.3)
     print("Auto Ken Haki:", state)
 end)
 
 -- Configuration & Quality of Life
 w:Button("Save Config", function()
+    Bypasser.randomDelay(0.1, 0.3)
     print("Config Saved")
 end)
 
 w:Button("Load Config", function()
+    Bypasser.randomDelay(0.1, 0.3)
     print("Config Loaded")
 end)
 
 w:Toggle("Auto Redeem Codes", false, function(state)
+    Bypasser.randomDelay(0.1, 0.3)
     print("Auto Redeem Codes:", state)
 end)
 
 w:Button("Redeem All Codes", function()
+    Bypasser.randomDelay(0.1, 0.3)
     print("Redeem All Codes")
 end)

@@ -1,0 +1,565 @@
+local library = {}
+
+function library:CreateWindow(title)
+    local window = {}
+    
+    local screenGui = Instance.new("ScreenGui")
+    screenGui.Parent = game.CoreGui
+    
+    local frame = Instance.new("Frame")
+    frame.Size = UDim2.new(0, 300, 0, 400)
+    frame.Position = UDim2.new(0.5, -150, 0.5, -200)
+    frame.BackgroundColor3 = Color3.fromRGB(25, 25, 50)
+    frame.BorderSizePixel = 0
+    frame.Parent = screenGui
+    
+    local titleBar = Instance.new("Frame")
+    titleBar.Size = UDim2.new(1, 0, 0, 25)
+    titleBar.Position = UDim2.new(0, 0, 0, 0)
+    titleBar.BackgroundColor3 = Color3.fromRGB(20, 20, 40)
+    titleBar.Parent = frame
+    
+    local titleLabel = Instance.new("TextLabel")
+    titleLabel.Size = UDim2.new(1, -20, 1, 0)
+    titleLabel.Position = UDim2.new(0, 10, 0, 0)
+    titleLabel.BackgroundTransparency = 1
+    titleLabel.Text = title
+    titleLabel.TextColor3 = Color3.new(1, 1, 1)
+    titleLabel.TextXAlignment = Enum.TextXAlignment.Left
+    titleLabel.Font = Enum.Font.SourceSansSemibold
+    titleLabel.TextSize = 16
+    titleLabel.Parent = titleBar
+    
+    local closeBtn = Instance.new("TextButton")
+    closeBtn.Size = UDim2.new(0, 20, 1, 0)
+    closeBtn.Position = UDim2.new(1, -20, 0, 0)
+    closeBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+    closeBtn.Text = "X"
+    closeBtn.TextColor3 = Color3.new(1, 1, 1)
+    closeBtn.Font = Enum.Font.SourceSansBold
+    closeBtn.TextSize = 14
+    closeBtn.Parent = titleBar
+    
+    local scrollFrame = Instance.new("ScrollingFrame")
+    scrollFrame.Size = UDim2.new(1, 0, 1, -25)
+    scrollFrame.Position = UDim2.new(0, 0, 0, 25)
+    scrollFrame.BackgroundTransparency = 1
+    scrollFrame.ScrollBarThickness = 6
+    scrollFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
+    scrollFrame.Parent = frame
+    
+    local layout = Instance.new("UIListLayout")
+    layout.Padding = UDim.new(0, 5)
+    layout.SortOrder = Enum.SortOrder.LayoutOrder
+    layout.Parent = scrollFrame
+    
+    -- Dragging functionality
+    local dragStart, start pos
+    local function updateInput(input)
+        local delta = input.Position - dragStart
+        frame Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    end
+    
+    titleBar.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragStart = input.Position
+            startPos = frame.Position
+            
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    dragging = false
+                end
+            end)
+        end
+    end)
+    
+    titleBar.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement then
+            if dragging then
+                updateInput(input)
+            end
+        end
+    end)
+    
+    UserInputService.InputChanged:Connect(function(input)
+        if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+            updateInput(input)
+        end
+    end)
+    
+    -- Close button functionality
+    closeBtn.MouseButton1Click:Connect(function()
+        screenGui:Destroy()
+    end)
+    
+    -- Element creation functions
+    local elementCount = 0
+    
+    function window:Toggle(text, state, callback)
+        elementCount = elementCount + 1
+        local toggleFrame = Instance.new("Frame")
+        toggleFrame.Size = UDim2.new(1, -10, 0, 30)
+        toggleFrame.Position = UDim2.new(0, 5, 0, 0)
+        toggleFrame.BackgroundTransparency = 1
+        toggleFrame.LayoutOrder = elementCount
+        toggleFrame.Parent = scrollFrame
+        
+        local toggleButton = Instance.new("TextButton")
+        toggleButton.Size = UDim2.new(0, 20, 0, 20)
+        toggleButton.Position = UDim2.new(0, 5, 0, 5)
+        toggleButton.BackgroundColor3 = state and Color3.fromRGB(0, 150, 0) or Color3.fromRGB(100, 100, 100)
+        toggleButton.Text = ""
+        toggleButton.Parent = toggleFrame
+        
+        local label = Instance.new("TextLabel")
+        label.Size = UDim2.new(1, -35, 1, 0)
+        label.Position = UDim2.new(0, 30, 0, 0)
+        label.BackgroundTransparency = 1
+        label.Text = text
+        label.TextColor3 = Color3.new(1, 1, 1)
+        label.TextXAlignment = Enum.TextXAlignment.Left
+        label.Font = Enum.Font.SourceSans
+        label.TextSize = 14
+        label.Parent = toggleFrame
+        
+        toggleButton.MouseButton1Click:Connect(function()
+            state = not state
+            toggleButton.BackgroundColor3 = state and Color3.fromRGB(0, 150, 0) or Color3.fromRGB(100, 100, 100)
+            callback(state)
+        end)
+        
+        scrollFrame.CanvasSize = UDim2.new(0, 0, 0, layout.AbsoluteContentSize.Y + 10)
+    end
+    
+    function window:Box(text, boxType, callback)
+        elementCount = elementCount + 1
+        local boxFrame = Instance.new("Frame")
+        boxFrame.Size = UDim2.new(1, -10, 0, 50)
+        boxFrame.Position = UDim2.new(0, 5, 0, 0)
+        boxFrame.BackgroundTransparency = 1
+        boxFrame.LayoutOrder = elementCount
+        boxFrame.Parent = scrollFrame
+        
+        local label = Instance.new("TextLabel")
+        label.Size = UDim2.new(1, -10, 0, 20)
+        label.Position = UDim2.new(0, 5, 0, 0)
+        label.BackgroundTransparency = 1
+        label.Text = text
+        label.TextColor3 = Color3.new(1, 1, 1)
+        label.TextXAlignment = Enum.TextXAlignment.Left
+        label.Font = Enum.Font.SourceSans
+        label.TextSize = 14
+        label.Parent = boxFrame
+        
+        local textBox = Instance.new("TextBox")
+        textBox.Size = UDim2.new(1, -10, 0, 25)
+        textBox.Position = UDim2.new(0, 5, 0, 25)
+        textBox.BackgroundColor3 = Color3.fromRGB(40, 40, 70)
+        textBox.TextColor3 = Color3.new(1, 1, 1)
+        textBox.PlaceholderText = boxType == "number" and "Enter number..." or "Enter text..."
+        textBox.ClearTextOnFocus = false
+        textBox.Parent = boxFrame
+        
+        textBox.FocusLost:Connect(function(enterPressed)
+            if enterPressed then
+                local value = textBox.Text
+                if boxType == "number" then
+                    value = tonumber(value) or 0
+                end
+                callback(value)
+            end
+        end)
+        
+        scrollFrame.CanvasSize = UDim2.new(0, 0, 0, layout.AbsoluteContentSize.Y + 10)
+    end
+    
+    function window:Button(text, callback)
+        elementCount = elementCount + 1
+        local buttonFrame = Instance.new("Frame")
+        buttonFrame.Size = UDim2.new(1, -10, 0, 30)
+        buttonFrame.Position = UDim2.new(0, 5, 0, 0)
+        buttonFrame.BackgroundTransparency = 1
+        buttonFrame.LayoutOrder = elementCount
+        buttonFrame.Parent = scrollFrame
+        
+        local button = Instance.new("TextButton")
+        button.Size = UDim2.new(1, 0, 1, 0)
+        button.Position = UDim2.new(0, 0, 0, 0)
+        button.BackgroundColor3 = Color3.fromRGB(40, 40, 80)
+        button.Text = text
+        button.TextColor3 = Color3.new(1, 1, 1)
+        button.Font = Enum.Font.SourceSans
+        button.TextSize = 14
+        button.Parent = buttonFrame
+        
+        button.MouseButton1Click:Connect(callback)
+        
+        scrollFrame.CanvasSize = UDim2.new(0, 0, 0, layout.AbsoluteContentSize.Y + 10)
+    end
+    
+    function window:Slider(text, minVal, maxVal, defaultVal, callback)
+        elementCount = elementCount + 1
+        local sliderFrame = Instance.new("Frame")
+        sliderFrame.Size = UDim2.new(1, -10, 0, 60)
+        sliderFrame.Position = UDim2.new(0, 5, 0, 0)
+        sliderFrame.BackgroundTransparency = 1
+        sliderFrame.LayoutOrder = elementCount
+        sliderFrame.Parent = scrollFrame
+        
+        local label = Instance.new("TextLabel")
+        label.Size = UDim2.new(1, -10, 0, 20)
+        label.Position = UDim2.new(0, 5, 0, 0)
+        label.BackgroundTransparency = 1
+        label.Text = text .. ": " .. defaultVal
+        label.TextColor3 = Color3.new(1, 1, 1)
+        label.TextXAlignment = Enum.TextXAlignment.Left
+        label.Font = Enum.Font.SourceSans
+        label.TextSize = 14
+        label.Parent = sliderFrame
+        
+        local slider = Instance.new("Frame")
+        slider.Size = UDim2.new(1, 0, 0, 10)
+        slider.Position = UDim2.new(0, 0, 0, 30)
+        slider.BackgroundColor3 = Color3.fromRGB(60, 60, 90)
+        slider.Parent = sliderFrame
+        
+        local sliderFill = Instance.new("Frame")
+        sliderFill.Size = UDim2.new((defaultVal-minVal)/(maxVal-minVal), 0, 1, 0)
+        sliderFill.Position = UDim2.new(0, 0, 0, 0)
+        sliderFill.BackgroundColor3 = Color3.fromRGB(0, 150, 200)
+        sliderFill.Parent = slider
+        
+        local sliderButton = Instance.new("Frame")
+        sliderButton.Size = UDim2.new(0, 10, 1, 0)
+        sliderButton.Position = UDim2.new((defaultVal-minVal)/(maxVal-minVal), -5, 0, 0)
+        sliderButton.BackgroundColor3 = Color3.new(1, 1, 1)
+        sliderButton.Parent = slider
+        
+        local draggingSlider = false
+        sliderButton.InputBegan:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1 then
+                draggingSlider = true
+            end
+        end)
+        
+        sliderButton.InputEnded:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1 then
+                draggingSlider = false
+            end
+        end)
+        
+        slider.InputBegan:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1 then
+                local pos = (input.Position.X - slider.AbsolutePosition.X) / slider.AbsoluteSize.X
+                pos = math.clamp(pos, 0, 1)
+                local value = minVal + (pos * (maxVal - minVal))
+                sliderFill.Size = UDim2.new(pos, 0, 1, 0)
+                sliderButton.Position = UDim2.new(pos, -5, 0, 0)
+                label.Text = text .. ": " .. math.floor(value)
+                callback(value)
+            end
+        end)
+        
+        UserInputService.InputChanged:Connect(function(input)
+            if draggingSlider and input.UserInputType == Enum.UserInputType.MouseMovement then
+                local pos = (input.Position.X - slider.AbsolutePosition.X) / slider.AbsoluteSize.X
+                pos = math.clamp(pos, 0, 1)
+                local value = minVal + (pos * (maxVal - minVal))
+                sliderFill.Size = UDim2.new(pos, 0, 1, 0)
+                sliderButton.Position = UDim2.new(pos, -5, 0, 0)
+                label.Text = text .. ": " .. math.floor(value)
+                callback(value)
+            end
+        end)
+        
+        scrollFrame.CanvasSize = UDim2.new(0, 0, 0, layout.AbsoluteContentSize.Y + 10)
+    end
+    
+    return window
+end
+
+-- Main Script
+local w = library:CreateWindow("OPEX HUB")
+
+-- Core Farming Features
+w:Toggle("Auto Farm Level", false, function(state)
+    print("Auto Farm Level:", state)
+end)
+
+w:Toggle("Auto Farm Mastery", false, function(state)
+    print("Auto Farm Mastery:", state)
+end)
+
+w:Toggle("Auto Farm Bosses", false, function(state)
+    print("Auto Farm Bosses:", state)
+end)
+
+w:Box("Select Boss", "dropdown", function(value)
+    print("Selected Boss:", value)
+end)
+
+w:Toggle("Auto Farm Materials", false, function(state)
+    print("Auto Farm Materials:", state)
+end)
+
+w:Toggle("Auto Farm Bounty/Honor", false, function(state)
+    print("Auto Farm Bounty/Honor:", state)
+end)
+
+w:Toggle("Auto Dough King", false, function(state)
+    print("Auto Dough King:", state)
+end)
+
+w:Toggle("Kill Aura", false, function(state)
+    print("Kill Aura:", state)
+end)
+
+w:Toggle("Skill Aimbot", false, function(state)
+    print("Skill Aimbot:", state)
+end)
+
+-- Sea Events & Kitsune Island
+w:Toggle("Auto Kitsune Shrine", false, function(state)
+    print("Auto Kitsune Shrine:", state)
+end)
+
+w:Toggle("Auto Leviathan", false, function(state)
+    print("Auto Leviathan:", state)
+end)
+
+w:Toggle("Auto Terror Shark", false, function(state)
+    print("Auto Terror Shark:", state)
+end)
+
+w:Toggle("Auto Sea Beast", false, function(state)
+    print("Auto Sea Beast:", state)
+end)
+
+w:Toggle("Boat Modifications", false, function(state)
+    print("Boat Modifications:", state)
+end)
+
+-- Devil Fruits & Raids
+w:Toggle("Fruit Sniper", false, function(state)
+    print("Fruit Sniper:", state)
+end)
+
+w:Toggle("Fruit ESP/Bring", false, function(state)
+    print("Fruit ESP/Bring:", state)
+end)
+
+w:Toggle("Auto Store/Eat", false, function(state)
+    print("Auto Store/Eat:", state)
+end)
+
+w:Toggle("Auto Raid Clear", false, function(state)
+    print("Auto Raid Clear:", state)
+end)
+
+w:Toggle("Auto Awaken", false, function(state)
+    print("Auto Awaken:", state)
+end)
+
+w:Toggle("Auto Law Raid", false, function(state)
+    print("Auto Law Raid:", state)
+end)
+
+-- Item & Quest Automation
+w:Toggle("Auto CDK", false, function(state)
+    print("Auto CDK:", state)
+end)
+
+w:Toggle("Auto Soul Guitar", false, function(state)
+    print("Auto Soul Guitar:", state)
+end)
+
+w:Toggle("Auto TTK", false, function(state)
+    print("Auto TTK:", state)
+end)
+
+w:Toggle("Auto Haki/Colors", false, function(state)
+    print("Auto Haki/Colors:", state)
+end)
+
+w:Toggle("Auto Race V2/V3", false, function(state)
+    print("Auto Race V2/V3:", state)
+end)
+
+-- Race V4 & Trials
+w:Toggle("Auto Mirage Island", false, function(state)
+    print("Auto Mirage Island:", state)
+end)
+
+w:Toggle("Auto Full Moon", false, function(state)
+    print("Auto Full Moon:", state)
+end)
+
+w:Toggle("Auto Temple of Time", false, function(state)
+    print("Auto Temple of Time:", state)
+end)
+
+w:Toggle("Auto Train Race", false, function(state)
+    print("Auto Train Race:", state)
+end)
+
+-- ESP Systems
+w:Toggle("Player ESP", false, function(state)
+    print("Player ESP:", state)
+end)
+
+w:Toggle("Chest ESP", false, function(state)
+    print("Chest ESP:", state)
+end)
+
+w:Toggle("Island ESP", false, function(state)
+    print("Island ESP:", state)
+end)
+
+w:Toggle("Flower ESP", false, function(state)
+    print("Flower ESP:", state)
+end)
+
+-- Player State & Miscellaneous Utilities
+w:Toggle("Server Hop System", false, function(state)
+    print("Server Hop System:", state)
+end)
+
+w:Toggle("Auto Stats", false, function(state)
+    print("Auto Stats:", state)
+end)
+
+w:Toggle("Movement Hacks", false, function(state)
+    print("Movement Hacks:", state)
+end)
+
+w:Toggle("Anti-AFK", false, function(state)
+    print("Anti-AFK:", state)
+end)
+
+w:Toggle("FPS Boost", false, function(state)
+    print("FPS Boost:", state)
+end)
+
+w:Box("Webhook URL", "string", function(value)
+    print("Webhook URL:", value)
+end)
+
+-- Prehistoric Island & Volcanic Event Features
+w:Toggle("Prehistoric Island Features", false, function(state)
+    print("Prehistoric Island Features:", state)
+end)
+
+w:Toggle("Auto Volcanic Magnet", false, function(state)
+    print("Auto Volcanic Magnet:", state)
+end)
+
+w:Toggle("Auto Defend Ancient Relic", false, function(state)
+    print("Auto Defend Ancient Relic:", state)
+end)
+
+w:Toggle("Auto Material Collector", false, function(state)
+    print("Auto Material Collector:", state)
+end)
+
+w:Toggle("Auto Fossil Expert", false, function(state)
+    print("Auto Fossil Expert:", state)
+end)
+
+w:Toggle("Draco Cave Auto-Clear", false, function(state)
+    print("Draco Cave Auto-Clear:", state)
+end)
+
+-- NEW FEATURES BELOW --
+
+-- Endgame Fighting Styles
+w:Toggle("Auto Godhuman", false, function(state)
+    print("Auto Godhuman:", state)
+end)
+
+w:Toggle("Auto Sanguine Art", false, function(state)
+    print("Auto Sanguine Art:", state)
+end)
+
+w:Toggle("Auto Superhuman", false, function(state)
+    print("Auto Superhuman:", state)
+end)
+
+w:Toggle("Auto Death Step", false, function(state)
+    print("Auto Death Step:", state)
+end)
+
+w:Toggle("Auto Sharkman Karate", false, function(state)
+    print("Auto Sharkman Karate:", state)
+end)
+
+w:Toggle("Auto Electric Claw", false, function(state)
+    print("Auto Electric Claw:", state)
+end)
+
+w:Toggle("Auto Dragon Talon", false, function(state)
+    print("Auto Dragon Talon:", state)
+end)
+
+-- Specific Bosses & Global Events
+w:Toggle("Auto Rip_Indra", false, function(state)
+    print("Auto Rip_Indra:", state)
+end)
+
+w:Toggle("Auto Pirate Raid", false, function(state)
+    print("Auto Pirate Raid:", state)
+end)
+
+w:Toggle("Auto Elite Hunter", false, function(state)
+    print("Auto Elite Hunter:", state)
+end)
+
+w:Toggle("Auto Bone (Death King)", false, function(state)
+    print("Auto Bone (Death King):", state)
+end)
+
+-- Advanced Race & Haki Upgrades
+w:Toggle("Auto Observation V2", false, function(state)
+    print("Auto Observation V2:", state)
+end)
+
+w:Toggle("Auto Cyborg Race", false, function(state)
+    print("Auto Cyborg Race:", state)
+end)
+
+w:Toggle("Auto Ghoul Race", false, function(state)
+    print("Auto Ghoul Race:", state)
+end)
+
+-- PvP & Survival
+w:Slider("Hitbox Expansion", 0, 50, 0, function(value)
+    print("Hitbox Expansion:", value)
+end)
+
+w:Toggle("Auto Safezone", false, function(state)
+    print("Auto Safezone:", state)
+end)
+
+w:Box("Safezone Health %", "number", function(value)
+    print("Safezone Health %:", value)
+end)
+
+w:Toggle("Auto Ken Haki", false, function(state)
+    print("Auto Ken Haki:", state)
+end)
+
+-- Configuration & Quality of Life
+w:Button("Save Config", function()
+    print("Config Saved")
+end)
+
+w:Button("Load Config", function()
+    print("Config Loaded")
+end)
+
+w:Toggle("Auto Redeem Codes", false, function(state)
+    print("Auto Redeem Codes:", state)
+end)
+
+w:Button("Redeem All Codes", function()
+    print("Redeem All Codes")
+end)

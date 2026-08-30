@@ -1,26 +1,75 @@
 local library = {}
+library.gui = nil
+library.window = nil
+library.toggleButton = nil
 
-function library:CreateWindow(title)
-    local window = {}
+-- Create toggle button (small square)
+function library:CreateToggleButton()
+    if self.toggleButton then return end
     
     local screenGui = Instance.new("ScreenGui")
+    screenGui.Name = "OPEX_Toggle"
+    screenGui.Parent = game.CoreGui
+    
+    local button = Instance.new("Frame")
+    button.Size = UDim2.new(0, 30, 0, 30)
+    button.Position = UDim2.new(1, -40, 1, -40)
+    button.BackgroundColor3 = Color3.fromRGB(0, 100, 200)
+    button.BorderSizePixel = 2
+    button.BorderColor3 = Color3.fromRGB(0, 50, 150)
+    button.Parent = screenGui
+    
+    local textLabel = Instance.new("TextLabel")
+    textLabel.Size = UDim2.new(1, 0, 1, 0)
+    textLabel.BackgroundTransparency = 1
+    textLabel.Text = "OX"
+    textLabel.TextColor3 = Color3.new(1, 1, 1)
+    textLabel.Font = Enum.Font.SourceSansBold
+    textLabel.TextSize = 14
+    textLabel.Parent = button
+    
+    button.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            if self.window and self.window.Visible then
+                self.window.Visible = false
+            else
+                if not self.gui then
+                    self:CreateWindow("OPEX HUB")
+                end
+                self.window.Visible = true
+            end
+        end
+    end)
+    
+    self.toggleButton = screenGui
+end
+
+function library:CreateWindow(title)
+    if self.gui then
+        self.gui:Destroy()
+    end
+    
+    -- Create GUI
+    local screenGui = Instance.new("ScreenGui")
+    screenGui.Name = "OPEX_HUB"
     screenGui.Parent = game.CoreGui
     
     local frame = Instance.new("Frame")
     frame.Size = UDim2.new(0, 300, 0, 400)
     frame.Position = UDim2.new(0.5, -150, 0.5, -200)
-    frame.BackgroundColor3 = Color3.fromRGB(25, 25, 50)
+    frame.BackgroundColor3 = Color3.fromRGB(15, 25, 40)
     frame.BorderSizePixel = 0
+    frame.Active = true
     frame.Parent = screenGui
     
     local titleBar = Instance.new("Frame")
     titleBar.Size = UDim2.new(1, 0, 0, 25)
     titleBar.Position = UDim2.new(0, 0, 0, 0)
-    titleBar.BackgroundColor3 = Color3.fromRGB(20, 20, 40)
+    titleBar.BackgroundColor3 = Color3.fromRGB(0, 50, 100)
     titleBar.Parent = frame
     
     local titleLabel = Instance.new("TextLabel")
-    titleLabel.Size = UDim2.new(1, -20, 1, 0)
+    titleLabel.Size = UDim2.new(1, -60, 1, 0)
     titleLabel.Position = UDim2.new(0, 10, 0, 0)
     titleLabel.BackgroundTransparency = 1
     titleLabel.Text = title
@@ -30,6 +79,18 @@ function library:CreateWindow(title)
     titleLabel.TextSize = 16
     titleLabel.Parent = titleBar
     
+    -- Minimize button
+    local minimizeBtn = Instance.new("TextButton")
+    minimizeBtn.Size = UDim2.new(0, 20, 1, 0)
+    minimizeBtn.Position = UDim2.new(1, -40, 0, 0)
+    minimizeBtn.BackgroundColor3 = Color3.fromRGB(0, 100, 200)
+    minimizeBtn.Text = "_"
+    minimizeBtn.TextColor3 = Color3.new(1, 1, 1)
+    minimizeBtn.Font = Enum.Font.SourceSansBold
+    minimizeBtn.TextSize = 14
+    minimizeBtn.Parent = titleBar
+    
+    -- Close button
     local closeBtn = Instance.new("TextButton")
     closeBtn.Size = UDim2.new(0, 20, 1, 0)
     closeBtn.Position = UDim2.new(1, -20, 0, 0)
@@ -54,14 +115,22 @@ function library:CreateWindow(title)
     layout.Parent = scrollFrame
     
     -- Dragging functionality
-    local dragStart, start pos
+    local dragging = false
+    local dragStart, startPos
+    
     local function updateInput(input)
         local delta = input.Position - dragStart
-        frame Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        frame.Position = UDim2.new(
+            startPos.X.Scale, 
+            startPos.X.Offset + delta.X, 
+            startPos.Y.Scale, 
+            startPos.Y.Offset + delta.Y
+        )
     end
     
     titleBar.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = true
             dragStart = input.Position
             startPos = frame.Position
             
@@ -81,19 +150,24 @@ function library:CreateWindow(title)
         end
     end)
     
-    UserInputService.InputChanged:Connect(function(input)
+    game:GetService("UserInputService").InputChanged:Connect(function(input)
         if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
             updateInput(input)
         end
     end)
     
-    -- Close button functionality
+    -- Button functionality
+    minimizeBtn.MouseButton1Click:Connect(function()
+        frame.Visible = false
+    end)
+    
     closeBtn.MouseButton1Click:Connect(function()
-        screenGui:Destroy()
+        frame.Visible = false
     end)
     
     -- Element creation functions
     local elementCount = 0
+    local window = {}
     
     function window:Toggle(text, state, callback)
         elementCount = elementCount + 1
@@ -109,6 +183,7 @@ function library:CreateWindow(title)
         toggleButton.Position = UDim2.new(0, 5, 0, 5)
         toggleButton.BackgroundColor3 = state and Color3.fromRGB(0, 150, 0) or Color3.fromRGB(100, 100, 100)
         toggleButton.Text = ""
+        toggleButton.AutoButtonColor = false
         toggleButton.Parent = toggleFrame
         
         local label = Instance.new("TextLabel")
@@ -154,7 +229,7 @@ function library:CreateWindow(title)
         local textBox = Instance.new("TextBox")
         textBox.Size = UDim2.new(1, -10, 0, 25)
         textBox.Position = UDim2.new(0, 5, 0, 25)
-        textBox.BackgroundColor3 = Color3.fromRGB(40, 40, 70)
+        textBox.BackgroundColor3 = Color3.fromRGB(30, 40, 60)
         textBox.TextColor3 = Color3.new(1, 1, 1)
         textBox.PlaceholderText = boxType == "number" and "Enter number..." or "Enter text..."
         textBox.ClearTextOnFocus = false
@@ -185,7 +260,7 @@ function library:CreateWindow(title)
         local button = Instance.new("TextButton")
         button.Size = UDim2.new(1, 0, 1, 0)
         button.Position = UDim2.new(0, 0, 0, 0)
-        button.BackgroundColor3 = Color3.fromRGB(40, 40, 80)
+        button.BackgroundColor3 = Color3.fromRGB(0, 100, 200)
         button.Text = text
         button.TextColor3 = Color3.new(1, 1, 1)
         button.Font = Enum.Font.SourceSans
@@ -220,7 +295,7 @@ function library:CreateWindow(title)
         local slider = Instance.new("Frame")
         slider.Size = UDim2.new(1, 0, 0, 10)
         slider.Position = UDim2.new(0, 0, 0, 30)
-        slider.BackgroundColor3 = Color3.fromRGB(60, 60, 90)
+        slider.BackgroundColor3 = Color3.fromRGB(30, 40, 60)
         slider.Parent = sliderFrame
         
         local sliderFill = Instance.new("Frame")
@@ -260,7 +335,7 @@ function library:CreateWindow(title)
             end
         end)
         
-        UserInputService.InputChanged:Connect(function(input)
+        game:GetService("UserInputService").InputChanged:Connect(function(input)
             if draggingSlider and input.UserInputType == Enum.UserInputType.MouseMovement then
                 local pos = (input.Position.X - slider.AbsolutePosition.X) / slider.AbsoluteSize.X
                 pos = math.clamp(pos, 0, 1)
@@ -275,8 +350,18 @@ function library:CreateWindow(title)
         scrollFrame.CanvasSize = UDim2.new(0, 0, 0, layout.AbsoluteContentSize.Y + 10)
     end
     
+    -- Initialize toggle button if not exists
+    if not self.toggleButton then
+        self:CreateToggleButton()
+    end
+    
+    self.gui = screenGui
+    self.window = frame
     return window
 end
+
+-- Create the toggle button first
+library:CreateToggleButton()
 
 -- Main Script
 local w = library:CreateWindow("OPEX HUB")

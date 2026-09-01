@@ -1,0 +1,492 @@
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local Workspace = game:GetService("Workspace")
+local CoreGui = game:GetService("CoreGui")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+local VirtualUser = game:GetService("VirtualUser")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Lighting = game:GetService("Lighting")
+
+local LocalPlayer = Players.LocalPlayer
+local Camera = Workspace.CurrentCamera
+
+local Config = {
+    ESP = { Enabled = false, Tracers = false, Names = false, Roles = false, Distance = false, Chams = false, GunDrop = false, CoinESP = false },
+    ESPColors = { Innocent = Color3.fromRGB(0, 255, 0), Murderer = Color3.fromRGB(255, 0, 0), Sheriff = Color3.fromRGB(0, 150, 255), Hero = Color3.fromRGB(255, 255, 0), DroppedGun = Color3.fromRGB(255, 100, 255) },
+    Local = { WalkSpeed = 16, JumpPower = 50, Noclip = false, InfJump = false, Fly = false, FlySpeed = 50 },
+    Combat = { HitboxExpander = false, HitboxSize = 5, HitboxTransparency = 0.5, SilentAim = false, AutoShoot = false },
+    Farm = { AutoCoin = false, CoinTweenSpeed = 15, AutoJoin = false },
+    Misc = { AntiAFK = true, FakeLag = false, Fullbright = false }
+}
+
+local Cache = { ESPDrawings = {}, Highlights = {} }
+
+local function GetPlayerRole(player)
+    if not player or not player.Character then return "Innocent", Config.ESPColors.Innocent end
+    local backpack = player:FindFirstChild("Backpack")
+    local char = player.Character
+
+    if (backpack and backpack:FindFirstChild("Knife")) or char:FindFirstChild("Knife") then
+        return "Murderer", Config.ESPColors.Murderer
+    elseif (backpack and (backpack:FindFirstChild("Gun") or backpack:FindFirstChild("Revolver"))) or char:FindFirstChild("Gun") or char:FindFirstChild("Revolver") then
+        return "Sheriff", Config.ESPColors.Sheriff
+    end
+    if (backpack and backpack:FindFirstChild("Luger")) or char:FindFirstChild("Luger") then
+        return "Hero", Config.ESPColors.Hero
+    end
+    
+    return "Innocent", Config.ESPColors.Innocent
+end
+
+local function GetDroppedGun()
+    local normal = Workspace:FindFirstChild("Normal")
+    if normal then
+        for _, obj in pairs(normal:GetChildren()) do
+            if obj.Name == "GunDrop" or obj.Name == "Revolver" then
+                return obj
+            end
+        end
+    end
+    return nil
+end
+
+local function TweenTo(targetCFrame, speed)
+    if not LocalPlayer.Character or not LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then return end
+    local hrp = LocalPlayer.Character.HumanoidRootPart
+    local distance = (hrp.Position - targetCFrame.Position).Magnitude
+    local time = distance / speed
+    local tweenInfo = TweenInfo.new(time, Enum.EasingStyle.Linear)
+    local tween = TweenService:Create(hrp, tweenInfo, {CFrame = targetCFrame})
+    tween:Play()
+    return tween
+end
+
+local function ClearESP()
+    for _, obj in pairs(Cache.ESPDrawings) do obj:Remove() end
+    for _, obj in pairs(Cache.Highlights) do obj:Destroy() end
+    table.clear(Cache.ESPDrawings)
+    table.clear(Cache.Highlights)
+end
+
+local function CreateText()
+    local text = Drawing.new("Text")
+    text.Size = 16
+    text.Center = true
+    text.Outline = true
+    text.Font = 2
+    text.Visible = false
+    table.insert(Cache.ESPDrawings, text)
+    return text
+end
+
+local function CreateLine()
+    local line = Drawing.new("Line")
+    line.Thickness = 1.5
+    line.Visible = false
+    table.insert(Cache.ESPDrawings, line)
+    return line
+end
+
+RunService.RenderStepped:Connect(function()
+    ClearESP()
+    if not Config.ESP.Enabled then return end
+
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") and player.Character:FindFirstChild("Humanoid") and player.Character.Humanoid.Health > 0 then
+            local hrp = player.Character.HumanoidRootPart
+            local role, color = GetPlayerRole(player)
+            local pos, onScreen = Camera:WorldToViewportPoint(hrp.Position)
+            local distance = math.floor((Camera.CFrame.Position - hrp.Position).Magnitude)
+
+            if Config.ESP.Chams then
+                local highlight = Instance.new("Highlight")
+                highlight.FillColor = color
+                highlight.OutlineColor = Color3.new(1, 1, 1)
+                highlight.FillTransparency = 0.6
+                highlight.OutlineTransparency = 0.2
+                highlight.Parent = player.Character
+                table.insert(Cache.Highlights, highlight)
+            end
+
+            if onScreen then
+                if Config.ESP.Tracers then
+                    local tracer = CreateLine()
+                    tracer.Color = color
+                    tracer.From = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y)
+                    tracer.To = Vector2.new(pos.X, pos.Y)
+                    tracer.Visible = true
+                end
+
+                if Config.ESP.Names or Config.ESP.Roles or Config.ESP.Distance then
+                    local text = CreateText()
+                    text.Color = color
+                    text.Position = Vector2.new(pos.X, pos.Y - 40)
+                    
+                    local str = ""
+                    if Config.ESP.Names then str = str .. player.Name .. "\n" end
+                    if Config.ESP.Roles then str = str .. "[" .. role .. "]\n" end
+                    if Config.ESP.Distance then str = str .. distance .. "s\n" end
+                    
+                    text.Text = str
+                    text.Visible = true
+                end
+            end
+        end
+    end
+
+    if Config.ESP.GunDrop then
+        local gun = GetDroppedGun()
+        if gun then
+            local pos, onScreen = Camera:WorldToViewportPoint(gun.Position)
+            if onScreen then
+                local text = CreateText()
+                text.Color = Config.ESPColors.DroppedGun
+                text.Position = Vector2.new(pos.X, pos.Y)
+                text.Text = "[ DROPPED GUN ]\n" .. math.floor((Camera.CFrame.Position - gun.Position).Magnitude) .. "s"
+                text.Visible = true
+                
+                if Config.ESP.Tracers then
+                    local tracer = CreateLine()
+                    tracer.Color = Config.ESPColors.DroppedGun
+                    tracer.From = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y)
+                    tracer.To = Vector2.new(pos.X, pos.Y)
+                    tracer.Visible = true
+                end
+            end
+        end
+    end
+end)
+
+UserInputService.JumpRequest:Connect(function()
+    if Config.Local.InfJump and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+        LocalPlayer.Character.Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+    end
+end)
+
+RunService.Stepped:Connect(function()
+    if Config.Local.Noclip and LocalPlayer.Character then
+        for _, part in pairs(LocalPlayer.Character:GetDescendants()) do
+            if part:IsA("BasePart") and part.CanCollide then
+                part.CanCollide = false
+            end
+        end
+    end
+end)
+
+task.spawn(function()
+    while task.wait() do
+        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+            local hum = LocalPlayer.Character.Humanoid
+            if hum.WalkSpeed ~= Config.Local.WalkSpeed then
+                hum.WalkSpeed = Config.Local.WalkSpeed
+            end
+            if hum.JumpPower ~= Config.Local.JumpPower then
+                hum.JumpPower = Config.Local.JumpPower
+                hum.UseJumpPower = true
+            end
+        end
+
+        if Config.Misc.Fullbright then
+            Lighting.Ambient = Color3.new(1, 1, 1)
+            Lighting.ColorShift_Bottom = Color3.new(1, 1, 1)
+            Lighting.ColorShift_Top = Color3.new(1, 1, 1)
+            Lighting.GlobalShadows = false
+        end
+
+        if Config.Combat.HitboxExpander then
+            local myRole, _ = GetPlayerRole(LocalPlayer)
+            for _, p in pairs(Players:GetPlayers()) do
+                if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+                    local targetRole, _ = GetPlayerRole(p)
+                    local hrp = p.Character.HumanoidRootPart
+                    
+                    if (myRole == "Murderer") or (targetRole == "Murderer") then
+                        hrp.Size = Vector3.new(Config.Combat.HitboxSize, Config.Combat.HitboxSize, Config.Combat.HitboxSize)
+                        hrp.Transparency = Config.Combat.HitboxTransparency
+                        hrp.BrickColor = BrickColor.new("Bright red")
+                        hrp.Material = Enum.Material.Neon
+                        hrp.CanCollide = false
+                    else
+                        hrp.Size = Vector3.new(2, 2, 1)
+                        hrp.Transparency = 1
+                    end
+                end
+            end
+        end
+    end
+end)
+
+task.spawn(function()
+    while task.wait(0.5) do
+        if Config.Farm.AutoCoin and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            local normal = Workspace:FindFirstChild("Normal")
+            if normal and normal:FindFirstChild("CoinContainer") then
+                for _, coin in pairs(normal.CoinContainer:GetChildren()) do
+                    if Config.Farm.AutoCoin and coin.Name == "Coin_Server" then
+                        local tween = TweenTo(coin.CFrame, Config.Farm.CoinTweenSpeed)
+                        if tween then 
+                            tween.Completed:Wait() 
+                        end
+                        task.wait(0.2)
+                    end
+                end
+            end
+        end
+    end
+end)
+
+LocalPlayer.Idled:Connect(function()
+    if Config.Misc.AntiAFK then
+        VirtualUser:Button2Down(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
+        task.wait(1)
+        VirtualUser:Button2Up(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
+    end
+end)
+
+local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesys/WindUI/main/WindUI.lua"))()
+
+local Window = WindUI:CreateWindow({
+    Title = "Opex Hub | MM2",
+    Icon = "rbxassetid://10618928818", 
+    Theme = "Blue",
+    Size = UDim2.new(0, 600, 0, 450)
+})
+
+local Tabs = {
+    Main = Window:AddTab("Main / Local"),
+    Visuals = Window:AddTab("Visuals (ESP)"),
+    Combat = Window:AddTab("Combat & Advantage"),
+    Farm = Window:AddTab("Auto Farming"),
+    Teleports = Window:AddTab("Teleports"),
+    Troll = Window:AddTab("Trolling"),
+    Settings = Window:AddTab("Settings")
+}
+
+Tabs.Main:AddSlider({
+    Name = "WalkSpeed", Min = 16, Max = 150, Default = 16,
+    Callback = function(v) Config.Local.WalkSpeed = v end
+})
+
+Tabs.Main:AddSlider({
+    Name = "JumpPower", Min = 50, Max = 200, Default = 50,
+    Callback = function(v) Config.Local.JumpPower = v end
+})
+
+Tabs.Main:AddToggle({
+    Name = "Noclip", Default = false,
+    Callback = function(v) Config.Local.Noclip = v end
+})
+
+Tabs.Main:AddToggle({
+    Name = "Infinite Jump", Default = false,
+    Callback = function(v) Config.Local.InfJump = v end
+})
+
+Tabs.Main:AddToggle({
+    Name = "Fullbright (No Shadows)", Default = false,
+    Callback = function(v) Config.Misc.Fullbright = v end
+})
+
+Tabs.Visuals:AddToggle({
+    Name = "Master ESP Switch", Default = false,
+    Callback = function(v) Config.ESP.Enabled = v end
+})
+
+Tabs.Visuals:AddToggle({
+    Name = "Show Tracers", Default = false,
+    Callback = function(v) Config.ESP.Tracers = v end
+})
+
+Tabs.Visuals:AddToggle({
+    Name = "Show Player Names", Default = false,
+    Callback = function(v) Config.ESP.Names = v end
+})
+
+Tabs.Visuals:AddToggle({
+    Name = "Show Roles (Murder/Sheriff)", Default = false,
+    Callback = function(v) Config.ESP.Roles = v end
+})
+
+Tabs.Visuals:AddToggle({
+    Name = "Show Distance", Default = false,
+    Callback = function(v) Config.ESP.Distance = v end
+})
+
+Tabs.Visuals:AddToggle({
+    Name = "Show Highlight (Chams)", Default = false,
+    Callback = function(v) Config.ESP.Chams = v end
+})
+
+Tabs.Visuals:AddToggle({
+    Name = "Gun Drop ESP", Default = false,
+    Callback = function(v) Config.ESP.GunDrop = v end
+})
+
+Tabs.Combat:AddToggle({
+    Name = "Hitbox Expander (Smart Target)", Default = false,
+    Callback = function(v) Config.Combat.HitboxExpander = v end
+})
+
+Tabs.Combat:AddSlider({
+    Name = "Hitbox Size", Min = 5, Max = 25, Default = 5,
+    Callback = function(v) Config.Combat.HitboxSize = v end
+})
+
+Tabs.Combat:AddSlider({
+    Name = "Hitbox Transparency", Min = 0, Max = 10, Default = 5,
+    Callback = function(v) Config.Combat.HitboxTransparency = (v / 10) end
+})
+
+Tabs.Combat:AddButton({
+    Name = "Grab Dropped Gun (Teleport)",
+    Callback = function()
+        local gun = GetDroppedGun()
+        if gun and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            LocalPlayer.Character.HumanoidRootPart.CFrame = gun.CFrame
+        end
+    end
+})
+
+Tabs.Combat:AddButton({
+    Name = "Flee to Map Roof",
+    Callback = function()
+        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(0, 500, 0)
+            local part = Instance.new("Part", Workspace)
+            part.Size = Vector3.new(100, 1, 100)
+            part.Position = Vector3.new(0, 495, 0)
+            part.Anchored = true
+        end
+    end
+})
+
+Tabs.Farm:AddToggle({
+    Name = "Auto Collect Coins (Smooth Tween)", Default = false,
+    Callback = function(v) Config.Farm.AutoCoin = v end
+})
+
+Tabs.Farm:AddSlider({
+    Name = "Coin Tween Speed", Min = 5, Max = 50, Default = 15,
+    Callback = function(v) Config.Farm.CoinTweenSpeed = v end
+})
+
+Tabs.Farm:AddButton({
+    Name = "Force Teleport to Lobby",
+    Callback = function()
+        local lobby = Workspace:FindFirstChild("Lobby")
+        if lobby and lobby:FindFirstChild("SpawnLocation") and LocalPlayer.Character then
+            LocalPlayer.Character.HumanoidRootPart.CFrame = lobby.SpawnLocation.CFrame * CFrame.new(0,5,0)
+        end
+    end
+})
+
+Tabs.Teleports:AddButton({
+    Name = "Teleport Behind Murderer",
+    Callback = function()
+        for _, p in pairs(Players:GetPlayers()) do
+            if p ~= LocalPlayer and GetPlayerRole(p) == "Murderer" and p.Character then
+                LocalPlayer.Character.HumanoidRootPart.CFrame = p.Character.HumanoidRootPart.CFrame * CFrame.new(0, 0, 4)
+            end
+        end
+    end
+})
+
+Tabs.Teleports:AddButton({
+    Name = "Teleport Behind Sheriff",
+    Callback = function()
+        for _, p in pairs(Players:GetPlayers()) do
+            if p ~= LocalPlayer and GetPlayerRole(p) == "Sheriff" and p.Character then
+                LocalPlayer.Character.HumanoidRootPart.CFrame = p.Character.HumanoidRootPart.CFrame * CFrame.new(0, 0, 4)
+            end
+        end
+    end
+})
+
+local function GetPlayerNames()
+    local names = {}
+    for _, p in pairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer then table.insert(names, p.Name) end
+    end
+    return names
+end
+
+local SelectedPlayer = nil
+Tabs.Teleports:AddDropdown({
+    Name = "Select Player to TP",
+    Options = GetPlayerNames(),
+    Default = "Select",
+    Callback = function(v) SelectedPlayer = v end
+})
+
+Tabs.Teleports:AddButton({
+    Name = "Teleport To Selected Player",
+    Callback = function()
+        if SelectedPlayer and Players:FindFirstChild(SelectedPlayer) then
+            local target = Players[SelectedPlayer]
+            if target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
+                LocalPlayer.Character.HumanoidRootPart.CFrame = target.Character.HumanoidRootPart.CFrame
+            end
+        end
+    end
+})
+
+Tabs.Troll:AddButton({
+    Name = "Fling All",
+    Callback = function()
+        task.spawn(function()
+            local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+            if not hrp then return end
+            for _, p in pairs(Players:GetPlayers()) do
+                if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+                    local target = p.Character.HumanoidRootPart
+                    local bg = Instance.new("BodyGyro", hrp)
+                    local bv = Instance.new("BodyVelocity", hrp)
+                    bg.P, bg.maxTorque, bv.maxForce = 9e4, Vector3.new(9e9, 9e9, 9e9), Vector3.new(9e9, 9e9, 9e9)
+                    bg.cframe = target.CFrame
+                    bv.velocity = Vector3.new(0, 0, 0)
+                    
+                    hrp.CFrame = target.CFrame
+                    hrp.Velocity = Vector3.new(10000, 10000, 10000)
+                    task.wait(0.2)
+                    bg:Destroy()
+                    bv:Destroy()
+                end
+            end
+        end)
+    end
+})
+
+Tabs.Troll:AddButton({
+    Name = "Spam Chat",
+    Callback = function()
+        task.spawn(function()
+            for i = 1, 5 do
+                game:GetService("ReplicatedStorage").DefaultChatSystemChatEvents.SayMessageRequest:FireServer("Opex Hub is running this lobby.", "All")
+                task.wait(1)
+            end
+        end)
+    end
+})
+
+Tabs.Settings:AddToggle({
+    Name = "Anti-AFK", Default = true,
+    Callback = function(v) Config.Misc.AntiAFK = v end
+})
+
+Tabs.Settings:AddButton({
+    Name = "Unload / Destroy UI",
+    Callback = function()
+        ClearESP()
+        Config.ESP.Enabled = false
+        Config.Farm.AutoCoin = false
+        Config.Local.Noclip = false
+        Config.Combat.HitboxExpander = false
+        
+        if CoreGui:FindFirstChild("WindUI") then
+            CoreGui.WindUI:Destroy()
+        end
+    end
+})
+
+Window:Init()

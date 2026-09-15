@@ -1,0 +1,125 @@
+// macos_executor.cpp
+// Compile: clang++ -std=c++17 -arch arm64 -o executor macos_executor.cpp \
+//          -framework CoreFoundation -ldl
+// Run as root. SIP must be disabled.
+
+#include <mach/mach.h>
+#include <mach/mach_vm.h>
+#include <mach-o/dyld_images.h>
+#include <sys/ptrace.h>
+#include <dlfcn.h>
+#include <cstdio>
+#include <cstring>
+#include <string>
+
+// ---------------------------------------------------------------------------
+// 1. Minimal Luau bindings (you'd normally link the real lua.h)
+//    These are just enough to write the code — replace with real headers.
+// ---------------------------------------------------------------------------
+typedef struct lua_State lua_State;
+typedef int (*lua_CFunction)(lua_State* L);
+extern "C" {
+    void        lua_pushcfunction(lua_State*, lua_CFunction);
+    void        lua_setglobal(lua_State*, const char*);
+    const char* luaL_checkstring(lua_State*, int);
+    int         luaL_loadstring(lua_State*, const char*);
+    void        lua_pushnil(lua_State*);
+    void        lua_pushstring(lua_State*, const char*);
+}
+
+// ---------------------------------------------------------------------------
+// 2. Injection — task_for_pid + remote dlopen
+// ---------------------------------------------------------------------------
+static bool inject_dylib(pid_t pid, const char* dylib) {
+    task_t task;
+    if (task_for_pid(mach_task_self(), pid, &task) != KERN_SUCCESS) {
+        fprintf(stderr, "task_for_pid failed (SIP on? not root?)\n");
+        return false;
+    }
+
+    size_t len = strlen(dylib) + 1;
+    mach_vm_address_t remote = 0;
+    if (mach_vm_allocate(task, &remote, len, VM_FLAGS_ANYWHERE) != KERN_SUCCESS)
+        return false;
+
+    mach_vm_write(task, remote, (vm_offset_t)dylib, (mach_msg_type_number_t)len);
+
+    // Find dlopen in the target via dyld image info
+    task_dyld_info_data_t info;
+    mach_msg_type_number_t count = TASK_DYLD_INFO_COUNT;
+    task_info(task, TASK_DYLD_INFO, (task_info_t)&info, &count);
+
+    // In a real executor you walk the dyld_all_image_infos to find
+    // libdyld.dylib's load address, add the dlopen offset, and create a
+    // remote thread there. That's ~200 lines of Mach-O parsing — omitted.
+    fprintf(stderr, "would now call dlopen(%s) inside pid %d\n", dylib, pid);
+    return true;
+}
+
+// ---------------------------------------------------------------------------
+// 3. Hook to capture lua_State
+//    Real executor: MinHook/fishhook on luaD_throw or lua_gettop.
+// ---------------------------------------------------------------------------
+static lua_State* g_L = nullptr;
+
+static int lua_loadstring_hook(lua_State* L) {
+    g_L = L;                                  // capture on first Lua call
+    const char* code = luaL_checkstring(L, 1);
+    if (luaL_loadstring(L, code) != 0) {
+        lua_pushnil(L);
+    }
+    return 1;                                 // return the compiled chunk
+}
+
+// ---------------------------------------------------------------------------
+// 4. game:HttpGet — implemented as a __index metamethod hook
+// ---------------------------------------------------------------------------
+static int lua_httpget(lua_State* L) {
+    const char* url = luaL_checkstring(L, 2);
+
+    // Real impl: shell out to curl or use NSURLSession via Objective-C++.
+    std::string body;
+    FILE* p = popen(("curl -sL \"" + std::string(url) + "\"").c_str(), "r");
+    if (p) {
+        char buf[4096];
+        size_t n;
+        while ((n = fread(buf, 1, sizeof buf, p)) > 0) body.append(buf, n);
+        pclose(p);
+    }
+    lua_pushstring(L, body.c_str());
+    return 1;
+}
+
+// ---------------------------------------------------------------------------
+// 5. Register everything into the captured lua_State
+// ---------------------------------------------------------------------------
+static void install_globals(lua_State* L) {
+    lua_pushcfunction(L, lua_loadstring_hook);
+    lua_setglobal(L, "loadstring");
+
+    // game.HttpGet requires walking the game userdata's metatable and
+    // replacing its __index with a hook that returns lua_httpget when the
+    // key is "HttpGet". Skipped here — needs the real Roblox userdata layout.
+    (void)lua_httpget;
+}
+
+// ---------------------------------------------------------------------------
+// 6. Entry point
+// ---------------------------------------------------------------------------
+int main(int argc, char** argv) {
+    if (argc < 3) {
+        fprintf(stderr, "usage: %s <pid> <payload.dylib>\n", argv[0]);
+        return 1;
+    }
+    pid_t pid = atoi(argv[1]);
+
+    if (!inject_dylib(pid, argv[2])) return 1;
+
+    // In a real executor, the injected dylib itself does steps 3–5 once it's
+    // running inside the target. From outside the process you can't touch
+    // the target's lua_State directly.
+    if (g_L) install_globals(g_L);
+
+    printf("done\n");
+    return 0;
+}
